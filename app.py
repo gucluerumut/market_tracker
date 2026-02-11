@@ -6,6 +6,8 @@ import urllib.parse
 import feedparser
 from datetime import datetime
 from io import BytesIO
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 # ==========================================
 # 1. YAPILANDIRMA VE VERİ TABANI (ASSETS_DB)
@@ -42,6 +44,11 @@ LANG = {
         "news_evening": "🌙 Akşam: Kripto & Kapanış",
         "news_fetch": "Haberleri Getir ve Özetle",
         "news_header": "📌 {} | Finans Özeti",
+        "chart_tab": "📈 Grafik Oluşturucu",
+        "chart_select": "Varlık Seçin:",
+        "chart_btn": "Grafiği Oluştur",
+        "chart_download": "Grafiği İndir (PNG)",
+        "chart_title": "{} Günlük Grafik",
     },
     "EN": {
         "title": "📈 Live Market Tracker & Tweet Generator",
@@ -65,6 +72,11 @@ LANG = {
         "news_evening": "🌙 Evening: Crypto & Closing",
         "news_fetch": "Fetch & Summarize News",
         "news_header": "📌 {} | Finance Summary",
+        "chart_tab": "📈 Chart Generator",
+        "chart_select": "Select Asset:",
+        "chart_btn": "Generate Chart",
+        "chart_download": "Download Chart (PNG)",
+        "chart_title": "{} Daily Chart",
     }
 }
 
