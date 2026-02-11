@@ -46,6 +46,7 @@ LANG = {
         "news_header": "📌 {} | Finans Özeti",
         "chart_tab": "📈 Grafik Oluşturucu",
         "chart_select": "Varlık Seçin:",
+        "chart_range_label": "Zaman Aralığı:",
         "chart_btn": "Grafiği Oluştur",
         "chart_download": "Grafiği İndir (PNG)",
         "chart_title": "{} Günlük Grafik",
@@ -74,6 +75,7 @@ LANG = {
         "news_header": "📌 {} | Finance Summary",
         "chart_tab": "📈 Chart Generator",
         "chart_select": "Select Asset:",
+        "chart_range_label": "Time Range:",
         "chart_btn": "Generate Chart",
         "chart_download": "Download Chart (PNG)",
         "chart_title": "{} Daily Chart",
@@ -583,7 +585,15 @@ with tab3:
     
     # Varlık Listesi (İsim + Ticker)
     asset_options = {f"{a['emoji']} {a['name_tr' if lang_choice == 'TR' else 'name_en']}": a['id'] for a in ASSETS_DB}
-    selected_asset_name = st.selectbox(texts["chart_select"], list(asset_options.keys()))
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        selected_asset_name = st.selectbox(texts["chart_select"], list(asset_options.keys()))
+    with col2:
+        # Zaman Aralığı Seçimi
+        range_options = ["1D (5m)", "5D (30m)", "1M (1d)"]
+        selected_range = st.selectbox(texts["chart_range_label"], range_options, index=1) # Varsayılan: 5D
+    
     selected_asset_id = asset_options[selected_asset_name]
     
     # Seçilen asset'in ticker'ını bul
@@ -592,14 +602,28 @@ with tab3:
     if st.button(texts["chart_btn"], type="primary"):
         with st.spinner(texts["loading"]):
             try:
-                # Veri Çekme (1 Günlük, 5dk aralıklı)
-                df = yf.download(selected_ticker, period="1d", interval="5m", progress=False)
-                chart_period_label = "Daily"
+                # Aralığa göre parametreleri belirle
+                p_period = "5d"
+                p_interval = "30m"
                 
-                # Eğer 1 günlük veri boşsa, 5 günlüğe düş (Fallback)
-                if df.empty:
-                    df = yf.download(selected_ticker, period="5d", interval="30m", progress=False)
-                    chart_period_label = "5 Days"
+                if "1D" in selected_range:
+                    p_period = "1d"
+                    p_interval = "5m"
+                elif "5D" in selected_range:
+                    p_period = "5d"
+                    p_interval = "30m"
+                elif "1M" in selected_range:
+                    p_period = "1mo"
+                    p_interval = "1d"
+                
+                # Veri Çekme
+                df = yf.download(selected_ticker, period=p_period, interval=p_interval, progress=False)
+                
+                # Fallback: Eğer 1D boşsa 5D dene
+                if df.empty and p_period == "1d":
+                     st.warning("1 Günlük veri bulunamadı, 5 Günlük veriye geçiliyor...")
+                     df = yf.download(selected_ticker, period="5d", interval="30m", progress=False)
+                     p_period = "5d"
                 
                 if not df.empty:
                     # Veri boyutunu düzelt (Eğer DataFrame gelirse Series'e çevir)
@@ -618,15 +642,17 @@ with tab3:
                     ax.fill_between(df.index, close_data, close_data.min(), color='#00ff88', alpha=0.1)
                     
                     # Başlık ve Etiketler
-                    chart_title = f"{selected_asset_name} ({chart_period_label})"
+                    chart_title = f"{selected_asset_name} ({p_period.upper()})"
                     ax.set_title(chart_title, fontsize=14, fontweight='bold', color='white', pad=20)
                     ax.grid(True, linestyle='--', alpha=0.2)
                     
                     # Tarih formatı
-                    if chart_period_label == "Daily":
+                    if p_period == "1d":
                         ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                    elif p_period == "5d":
+                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H'))
                     else:
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
                     
                     # Kenarlıkları kaldır
                     ax.spines['top'].set_visible(False)
