@@ -616,13 +616,14 @@ with tab3:
                     p_period = "1mo"
                     p_interval = "1d"
                 
-                # Veri Çekme
-                df = yf.download(selected_ticker, period=p_period, interval=p_interval, progress=False)
+                # Veri Çekme (Ticker.history ile daha stabil)
+                ticker_obj = yf.Ticker(selected_ticker)
+                df = ticker_obj.history(period=p_period, interval=p_interval)
                 
                 # Fallback: Eğer 1D boşsa 5D dene
                 if df.empty and p_period == "1d":
                      st.warning("1 Günlük veri bulunamadı, 5 Günlük veriye geçiliyor...")
-                     df = yf.download(selected_ticker, period="5d", interval="30m", progress=False)
+                     df = ticker_obj.history(period="5d", interval="30m")
                      p_period = "5d"
                 
                 if not df.empty:
