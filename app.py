@@ -8,6 +8,7 @@ from datetime import datetime
 from io import BytesIO
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import mplfinance as mpf
 
 # ==========================================
 # 1. YAPILANDIRMA VE VERİ TABANI (ASSETS_DB)
