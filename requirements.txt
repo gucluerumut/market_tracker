@@ -2,6 +2,7 @@ streamlit==1.32.0
 yfinance>=0.2.36
 pandas
 requests
+mplfinance
 feedparser
 beautifulsoup4
 lxml
