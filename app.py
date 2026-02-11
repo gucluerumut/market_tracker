@@ -594,6 +594,12 @@ with tab3:
             try:
                 # Veri Çekme (1 Günlük, 5dk aralıklı)
                 df = yf.download(selected_ticker, period="1d", interval="5m", progress=False)
+                chart_period_label = "Daily"
+                
+                # Eğer 1 günlük veri boşsa, 5 günlüğe düş (Fallback)
+                if df.empty:
+                    df = yf.download(selected_ticker, period="5d", interval="30m", progress=False)
+                    chart_period_label = "5 Days"
                 
                 if not df.empty:
                     # Veri boyutunu düzelt (Eğer DataFrame gelirse Series'e çevir)
@@ -612,12 +618,15 @@ with tab3:
                     ax.fill_between(df.index, close_data, close_data.min(), color='#00ff88', alpha=0.1)
                     
                     # Başlık ve Etiketler
-                    chart_title = texts["chart_title"].format(selected_asset_name)
+                    chart_title = f"{selected_asset_name} ({chart_period_label})"
                     ax.set_title(chart_title, fontsize=14, fontweight='bold', color='white', pad=20)
                     ax.grid(True, linestyle='--', alpha=0.2)
                     
                     # Tarih formatı
-                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                    if chart_period_label == "Daily":
+                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                    else:
+                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
                     
                     # Kenarlıkları kaldır
                     ax.spines['top'].set_visible(False)
