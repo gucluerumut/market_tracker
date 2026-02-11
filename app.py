@@ -526,7 +526,7 @@ def get_market_data(selected_assets_list, lang_code):
 # ==========================================
 
 # Sekmeler
-tab1, tab2 = st.tabs(["📊 " + texts["title"], texts["news_tab"]])
+tab1, tab2, tab3 = st.tabs(["📊 " + texts["title"], texts["news_tab"], texts["chart_tab"]])
 
 with tab1:
     if st.button(texts["fetch_btn"], type="primary"):
@@ -577,3 +577,67 @@ with tab2:
                 st.link_button(texts["tweet_btn"], news_tweet_url)
             except:
                 st.markdown(f"[🐦 {texts['tweet_btn']}]({news_tweet_url})")
+
+with tab3:
+    st.subheader(texts["chart_tab"])
+    
+    # Varlık Listesi (İsim + Ticker)
+    asset_options = {f"{a['emoji']} {a['name_tr' if lang_choice == 'TR' else 'name_en']}": a['id'] for a in ASSETS_DB}
+    selected_asset_name = st.selectbox(texts["chart_select"], list(asset_options.keys()))
+    selected_asset_id = asset_options[selected_asset_name]
+    
+    # Seçilen asset'in ticker'ını bul
+    selected_ticker = next((a['ticker'] for a in ASSETS_DB if a['id'] == selected_asset_id), None)
+    
+    if st.button(texts["chart_btn"], type="primary"):
+        with st.spinner(texts["loading"]):
+            try:
+                # Veri Çekme (1 Günlük, 5dk aralıklı)
+                df = yf.download(selected_ticker, period="1d", interval="5m", progress=False)
+                
+                if not df.empty:
+                    # Veri boyutunu düzelt (Eğer DataFrame gelirse Series'e çevir)
+                    close_data = df['Close']
+                    if isinstance(close_data, pd.DataFrame):
+                        close_data = close_data.iloc[:, 0]
+
+                    # Grafik Ayarları
+                    plt.style.use('dark_background')
+                    fig, ax = plt.subplots(figsize=(10, 5))
+                    
+                    # Fiyat Çizgisi
+                    ax.plot(df.index, close_data, color='#00ff88', linewidth=2)
+                    
+                    # Alanı doldur
+                    ax.fill_between(df.index, close_data, close_data.min(), color='#00ff88', alpha=0.1)
+                    
+                    # Başlık ve Etiketler
+                    chart_title = texts["chart_title"].format(selected_asset_name)
+                    ax.set_title(chart_title, fontsize=14, fontweight='bold', color='white', pad=20)
+                    ax.grid(True, linestyle='--', alpha=0.2)
+                    
+                    # Tarih formatı
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                    
+                    # Kenarlıkları kaldır
+                    ax.spines['top'].set_visible(False)
+                    ax.spines['right'].set_visible(False)
+                    
+                    # Kaydet ve Göster
+                    buf = BytesIO()
+                    plt.savefig(buf, format="png", bbox_inches='tight', dpi=300, facecolor='black')
+                    st.image(buf)
+                    
+                    # İndirme Butonu
+                    st.download_button(
+                        label=texts["chart_download"],
+                        data=buf.getvalue(),
+                        file_name=f"{selected_asset_id}_daily_chart.png",
+                        mime="image/png"
+                    )
+                    
+                    plt.close()
+                else:
+                    st.error(texts["no_data"])
+            except Exception as e:
+                st.error(f"{texts['error']} {e}")
