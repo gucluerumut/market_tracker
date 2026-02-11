@@ -627,52 +627,56 @@ with tab3:
                      p_period = "5d"
                 
                 if not df.empty:
-                    # Veri boyutunu düzelt (Eğer DataFrame gelirse Series'e çevir)
-                    close_data = df['Close']
-                    if isinstance(close_data, pd.DataFrame):
-                        close_data = close_data.iloc[:, 0]
+                    # Timezone Dönüşümü (UTC -> Europe/Istanbul)
+                    if df.index.tzinfo is None:
+                        df.index = df.index.tz_localize('UTC')
+                    df.index = df.index.tz_convert('Europe/Istanbul')
 
-                    # Grafik Ayarları
-                    plt.style.use('dark_background')
-                    fig, ax = plt.subplots(figsize=(10, 5))
+                    # TradingView Tarzı Stil
+                    mc = mpf.make_marketcolors(
+                        up='#00ff88', down='#ff0055',
+                        edge='inherit',
+                        wick='inherit',
+                        volume='in',
+                        ohlc='inherit'
+                    )
+                    s = mpf.make_mpf_style(
+                        base_mpf_style='nightclouds',
+                        marketcolors=mc,
+                        gridstyle='--',
+                        y_on_right=True
+                    )
+
+                    # Grafik Başlığı
+                    chart_title = f"\n{selected_asset_name} ({p_period.upper()})"
+
+                    # Grafiği Çiz (Candlestick)
+                    fig, axlist = mpf.plot(
+                        df,
+                        type='candle',
+                        style=s,
+                        title=dict(title=chart_title, color='white', fontsize=14),
+                        ylabel='',
+                        ylabel_lower='',
+                        volume=False, # Hacim verisi bazen eksik olabiliyor, şimdilik kapalı
+                        figsize=(10, 5),
+                        returnfig=True,
+                        datetime_format='%H:%M' if p_period == "1d" else '%m-%d %H:%M',
+                        tight_layout=True
+                    )
                     
-                    # Fiyat Çizgisi
-                    ax.plot(df.index, close_data, color='#00ff88', linewidth=2)
-                    
-                    # Alanı doldur
-                    ax.fill_between(df.index, close_data, close_data.min(), color='#00ff88', alpha=0.1)
-                    
-                    # Başlık ve Etiketler
-                    chart_title = f"{selected_asset_name} ({p_period.upper()})"
-                    ax.set_title(chart_title, fontsize=14, fontweight='bold', color='white', pad=20)
-                    ax.grid(True, linestyle='--', alpha=0.2)
-                    
-                    # Tarih formatı
-                    if p_period == "1d":
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-                    elif p_period == "5d":
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H'))
-                    else:
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
-                    
-                    # Kenarlıkları kaldır
-                    ax.spines['top'].set_visible(False)
-                    ax.spines['right'].set_visible(False)
-                    
-                    # Kaydet ve Göster
+                    # Streamlit'te göster
+                    st.pyplot(fig)
+
+                    # Kaydet ve İndirme Butonu
                     buf = BytesIO()
-                    plt.savefig(buf, format="png", bbox_inches='tight', dpi=300, facecolor='black')
-                    st.image(buf)
-                    
-                    # İndirme Butonu
+                    fig.savefig(buf, format="png", bbox_inches='tight', dpi=300, facecolor='black')
                     st.download_button(
                         label=texts["chart_download"],
                         data=buf.getvalue(),
-                        file_name=f"{selected_asset_id}_daily_chart.png",
+                        file_name=f"{selected_asset_id}_{p_period}_chart.png",
                         mime="image/png"
                     )
-                    
-                    plt.close()
                 else:
                     st.error(texts["no_data"])
             except Exception as e:
