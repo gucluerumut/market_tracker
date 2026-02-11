@@ -627,10 +627,11 @@ with tab3:
                      p_period = "5d"
                 
                 if not df.empty:
-                    # Timezone Dönüşümü (UTC -> Europe/Istanbul)
+                    # Timezone Standardizasyonu (UTC)
                     if df.index.tzinfo is None:
                         df.index = df.index.tz_localize('UTC')
-                    df.index = df.index.tz_convert('Europe/Istanbul')
+                    else:
+                        df.index = df.index.tz_convert('UTC')
 
                     # TradingView Tarzı Stil
                     mc = mpf.make_marketcolors(
@@ -648,7 +649,7 @@ with tab3:
                     )
 
                     # Grafik Başlığı
-                    chart_title = f"\n{selected_asset_name} ({p_period.upper()})"
+                    chart_title = f"\n{selected_asset_name} ({p_period.upper()} - UTC)"
 
                     # Grafiği Çiz (Candlestick)
                     fig, axlist = mpf.plot(
