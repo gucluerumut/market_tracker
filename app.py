@@ -396,84 +396,57 @@ def fetch_finance_news(category="general"):
     }
 
     # Yasaklı Kelimeler (Soru cümleleri, rehberler, görüş yazıları)
-    exclude_terms = ["how", "why", "what", "when", "is", "should", "could", "would", "can", "review", "opinion", "podcast", "guide", "best", "top", "vs", "?", "transcript", "motley", "zacks"]
+    exclude_terms = [
+        "how to", "what is", "when is", "should you", "could", "would", 
+        "review", "opinion", "podcast", "guide", "best", "top 10", "top 5", 
+        "vs.", "transcript", "motley", "zacks", "guru", "prediction",
+        "subscribers only", "premium", "webinar"
+    ]
 
     # Tüm kaynakları tara
     for url in source_urls:
         if len(all_headlines) >= 5: break # Yeterince haber bulduysak dur
+        
+        # Kaynak ismini URL'den tahmin et
+        source_name = "News"
+        if "yahoo" in url: source_name = "Yahoo"
+        elif "cnbc" in url: source_name = "CNBC"
+        elif "dj.com" in url or "wsj" in url: source_name = "WSJ"
+        elif "investing" in url: source_name = "Investing"
+        elif "coindesk" in url: source_name = "CoinDesk"
+        elif "cointelegraph" in url: source_name = "CoinTelegraph"
+        elif "dowjones" in url: source_name = "MarketWatch"
         
         try:
             response = requests.get(url, headers=headers, timeout=5)
             feed = feedparser.parse(BytesIO(response.content))
             
             for entry in feed.entries:
-                title = entry.title
-                summary = entry.get("summary", "")
-                
-                # Temizlik
-                clean_title = title.split(" - ")[0].split(" | ")[0].strip()
-                lower_title = clean_title.lower()
-                
-                # 1. ADIM: Sıkı Filtreleme (Soru ve Clickbait engelleme)
-                if any(term in lower_title.split() for term in exclude_terms):
-                    continue # Yasaklı kelime varsa atla
-                
-                if "?" in clean_title:
-                    continue # Soru işareti varsa atla
-                
-                # 2. ADIM: Konu Belirleme ve Formatlama
-                detected_topic = None
-                display_topic = None
-                
-                # Başlık içinde konu ara
-                for key, val in topic_map.items():
-                    if key in lower_title:
-                        detected_topic = key
-                        display_topic = val
-                        break
-                
-                # Eğer konu bulamadıysak ve kategori 'general' değilse, kategoriyi konu yap
-                if not detected_topic:
-                     if category == "crypto" and ("bitcoin" not in lower_title):
-                         # Kripto haberlerinde konu yoksa genel bırak
-                         pass
-                
-                # Konu bulunduysa formatla: "Konu — Geri Kalan"
-                final_text = ""
-                emoji = "📰"
-                
-                if detected_topic:
-                     # Emojiyi ayarla
-                     if display_topic in ["US CPI Data", "Inflation", "GDP Data"]: emoji = "🇺🇸"
-                     elif display_topic in ["Federal Reserve", "FOMC", "Jerome Powell", "Treasury Yields"]: emoji = "📉"
-                     elif display_topic in ["Crude Oil", "Brent Oil"]: emoji = "🛢️"
-                     elif display_topic in ["Gold", "Silver"]: emoji = "🟡"
-                     elif display_topic in ["Bitcoin", "Ethereum", "Solana"]: emoji = "🟠"
-                     elif display_topic in ["Nvidia", "Tesla", "Apple", "Microsoft", "Tech"]: emoji = "🤖"
-                     
-                     # Başlıktan konuyu temizlemeye çalış (Opsiyonel, bazen tekrar güzel durabilir)
-                     # Amaç: "Bitcoin drops" -> "Bitcoin — Drops..."
-                     
-                     final_text = f"{emoji} {display_topic} — {clean_title}"
-                else:
-                    # Konu yoksa ama filtreyi geçtiyse (Önemli olabilir)
-                    # Sadece kategoriye uygunsa al
-                    text_to_check = (title + " " + summary).lower()
-                    if any(k in text_to_check for k in keywords[category]):
-                         final_text = f"📰 {clean_title}"
-                
-                if final_text:
-                     # Mükerrer kontrol
-                     if not any(clean_title in h for h in all_headlines):
-                         all_headlines.append(final_text)
-                
                 if len(all_headlines) >= 5: break
-        except:
+                
+                title = entry.title
+                link = entry.link
+                
+                # Sıkı Filtreleme
+                lower_title = title.lower()
+                if any(term in lower_title for term in exclude_terms):
+                    continue
+                if "?" in title: # Soru cümlelerini atla
+                    continue
+                
+                # Akıllı Formatlama
+                formatted_title = clean_and_format_headline(title, source_name, topic_map)
+                
+                # Mükerrer kontrolü (Basitçe başlığın ilk 20 karakteri)
+                if any(formatted_title[:20] in h[0] for h in all_headlines):
+                    continue
+                    
+                all_headlines.append((formatted_title, link))
+                
+        except Exception as e:
+            # st.error(f"RSS Error ({url}): {e}") # Hata olursa kullanıcıyı yorma, sessizce geç
             continue
             
-    if not all_headlines:
-        return ["📰 No major headlines found for this category right now."]
-        
     return all_headlines
 
 def get_symbol_data(item):
@@ -630,24 +603,34 @@ with tab2:
         with st.spinner(texts["loading"]):
             headlines = fetch_finance_news(news_cat)
             
-            # Tarih ve Başlık
-            today_str = datetime.now().strftime("%A")
-            header = texts["news_header"].format(today_str)
-            
-            news_text = f"{header}\n"
-            for h in headlines:
-                news_text += f" {h}\n"
-            
-            st.code(news_text, language="text")
-            
-            # Tweet Butonu
-            encoded_news = urllib.parse.quote(news_text)
-            news_tweet_url = f"https://twitter.com/intent/tweet?text={encoded_news}"
-            # st.link_button bazen eski sürümlerde 'key' hatası verebilir, garanti olsun diye parametresiz veya markdown
-            try:
-                st.link_button(texts["tweet_btn"], news_tweet_url)
-            except:
-                st.markdown(f"[🐦 {texts['tweet_btn']}]({news_tweet_url})")
+            if not headlines:
+                st.info("No news found at the moment. Please try again later.")
+            else:
+                # Tarih ve Başlık
+                today_str = datetime.now().strftime("%A")
+                header = texts["news_header"].format(today_str)
+                
+                # Kopyalanabilir Metin (Linksiz)
+                news_text = f"{header}\n"
+                for h, link in headlines:
+                    news_text += f"{h}\n"
+                
+                st.subheader("📋 Copy & Share")
+                st.code(news_text, language="text")
+                
+                # Tıklanabilir Liste
+                with st.expander("🔗 Read Full Stories", expanded=True):
+                    for h, link in headlines:
+                        st.markdown(f"• [{h}]({link})")
+                
+                # Tweet Butonu
+                encoded_news = urllib.parse.quote(news_text)
+                news_tweet_url = f"https://twitter.com/intent/tweet?text={encoded_news}"
+                
+                try:
+                    st.link_button(texts["tweet_btn"], news_tweet_url)
+                except:
+                    st.markdown(f"[🐦 {texts['tweet_btn']}]({news_tweet_url})")
 
 with tab3:
     st.subheader(texts["chart_tab"])
