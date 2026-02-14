@@ -241,9 +241,77 @@ def generate_commentary(results_data, lang_code):
         
     return comment
 
+import re
+
+def clean_and_format_headline(title, source_name, topic_map):
+    """
+    Haber başlığını temizler, formatlar ve 'vurucu' hale getirir.
+    """
+    # 1. Temizlik: HTML karakterleri ve boşluklar
+    clean_title = title.strip().replace("&amp;", "&").replace("&#39;", "'").replace("&quot;", '"')
+    
+    # 2. Regex ile Gereksiz Önekleri Sil
+    # Örn: "Live updates:", "Stock market news:", "Watch:", "Why"
+    prefixes = [
+        r"^Live updates:\s*", r"^Live:\s*", r"^Update:\s*", 
+        r"^Stock market news:\s*", r"^Stock market live:\s*", 
+        r"^Watch:\s*", r"^Video:\s*", r"^Exclusive:\s*",
+        r"^Here's why\s*", r"^Why\s*"
+    ]
+    for p in prefixes:
+        clean_title = re.sub(p, "", clean_title, flags=re.IGNORECASE)
+        
+    # 3. Regex ile Gereksiz Sonekleri Sil (Kaynak isimleri vb.)
+    # Örn: "- CNBC", "| Reuters", "- MarketWatch"
+    suffixes = [
+        r"\s*-\s*CNBC.*$", r"\s*\|\s*Reuters.*$", r"\s*-\s*MarketWatch.*$", 
+        r"\s*-\s*Bloomberg.*$", r"\s*-\s*Yahoo Finance.*$",
+        r"\s*-\s*CoinDesk.*$", r"\s*-\s*CoinTelegraph.*$"
+    ]
+    for s in suffixes:
+        clean_title = re.sub(s, "", clean_title)
+    
+    # Baş harfi büyüt (Cümle yapısı bozulduysa)
+    if clean_title:
+        clean_title = clean_title[0].upper() + clean_title[1:]
+
+    # 4. Konu Tespiti ve Emoji
+    detected_topic = None
+    display_topic = None
+    lower_title = clean_title.lower()
+    
+    for key, val in topic_map.items():
+        if key in lower_title:
+            detected_topic = key
+            display_topic = val
+            break
+            
+    emoji = "📰"
+    if display_topic:
+        if display_topic in ["US CPI Data", "Inflation", "GDP Data", "Federal Reserve", "FOMC", "Jerome Powell", "Treasury Yields"]: emoji = "🇺🇸"
+        elif display_topic in ["Crude Oil", "Brent Oil"]: emoji = "🛢️"
+        elif display_topic in ["Gold", "Silver"]: emoji = "🟡"
+        elif display_topic in ["Bitcoin", "Ethereum", "Solana"]: emoji = "🟠"
+        elif display_topic in ["Nvidia", "Tesla", "Apple", "Microsoft", "Tech", "Earnings"]: emoji = "🤖"
+        elif display_topic in ["US Stocks", "Wall Street", "Dow Jones", "Nasdaq", "S&P 500"]: emoji = "📈"
+
+    # 5. Formatlama: "Emoji **Konu** | Başlık [Kaynak]"
+    final_text = ""
+    if display_topic:
+        # Konu başlıkta zaten geçiyorsa, tekrar etmemek için bazen çıkarılabilir ama
+        # tutarlılık için "Konu | Başlık" yapısı daha iyidir.
+        final_text = f"{emoji} **{display_topic}** — {clean_title}"
+    else:
+        final_text = f"{emoji} {clean_title}"
+        
+    # Kaynağı ekle
+    final_text += f" `[{source_name}]`"
+    
+    return final_text
+
 def fetch_finance_news(category="general"):
     """
-    Yahoo Finance RSS feed'inden haberleri çeker ve basitçe formatlar.
+    Yahoo Finance, CNBC, vb. RSS feed'lerinden haberleri çeker.
     category: 'general', 'stocks', 'crypto'
     """
 
