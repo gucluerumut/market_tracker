@@ -1,3 +1,4 @@
+import uuid
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -589,48 +590,128 @@ with tab1:
 with tab2:
     st.header(texts["news_tab"])
     
-    col_n1, col_n2, col_n3 = st.columns(3)
+    # Session State Başlatma
+    if "news_data" not in st.session_state:
+        st.session_state["news_data"] = []
     
-    news_cat = None
-    if col_n1.button(texts["news_morning"]):
-        news_cat = "general"
-    if col_n2.button(texts["news_noon"]):
-        news_cat = "stocks"
-    if col_n3.button(texts["news_evening"]):
-        news_cat = "crypto"
+    col_n1, col_n2, col_n3, col_n4 = st.columns([1, 1, 1, 1])
+    
+    fetch_trigger = None
+    if col_n1.button(texts["news_morning"]): fetch_trigger = "general"
+    if col_n2.button(texts["news_noon"]): fetch_trigger = "stocks"
+    if col_n3.button(texts["news_evening"]): fetch_trigger = "crypto"
+    
+    # Temizle Butonu
+    if col_n4.button("🧹 Clear"):
+        st.session_state["news_data"] = []
+        st.experimental_rerun()
         
-    if news_cat:
+    if fetch_trigger:
         with st.spinner(texts["loading"]):
-            headlines = fetch_finance_news(news_cat)
-            
+            headlines = fetch_finance_news(fetch_trigger)
             if not headlines:
-                st.info("No news found at the moment. Please try again later.")
+                st.warning("No news found.")
             else:
-                # Tarih ve Başlık
-                today_str = datetime.now().strftime("%A")
-                header = texts["news_header"].format(today_str)
+                # Mevcut listeye ekle (En başa)
+                # Format: {"id": unique, "text": h, "link": link, "selected": True}
+                for h, link in reversed(headlines):
+                    # Mükerrer kontrolü
+                    if not any(item["text"] == h for item in st.session_state["news_data"]):
+                         st.session_state["news_data"].insert(0, {
+                             "id": str(uuid.uuid4()),
+                             "text": h,
+                             "link": link,
+                             "selected": True
+                         })
+    
+    # Haber Listesi ve Düzenleme Arayüzü
+    if st.session_state["news_data"]:
+        st.markdown("---")
+        st.write("### 📝 Tweet Composer")
+        
+        # Seçili haberleri tutacak liste
+        final_tweet_parts = []
+        
+        # Her haber için kart
+        for i, item in enumerate(st.session_state["news_data"]):
+            with st.container():
+                c1, c2 = st.columns([0.1, 0.9])
                 
-                # Kopyalanabilir Metin (Linksiz)
-                news_text = f"{header}\n"
-                for h, link in headlines:
-                    news_text += f"{h}\n"
+                # Checkbox
+                is_selected = c1.checkbox("", value=item["selected"], key=f"chk_{item['id']}")
+                st.session_state["news_data"][i]["selected"] = is_selected
                 
-                st.subheader("📋 Copy & Share")
-                st.code(news_text, language="text")
+                # Text Area (Düzenlenebilir)
+                new_text = c2.text_area(f"News #{i+1}", value=item["text"], height=70, key=f"txt_{item['id']}", label_visibility="collapsed")
+                st.session_state["news_data"][i]["text"] = new_text
                 
-                # Tıklanabilir Liste
-                with st.expander("🔗 Read Full Stories", expanded=True):
-                    for h, link in headlines:
-                        st.markdown(f"• [{h}]({link})")
+                # Linki göster (Opsiyonel)
+                c2.caption(f"🔗 [Source]({item['link']})")
                 
-                # Tweet Butonu
-                encoded_news = urllib.parse.quote(news_text)
-                news_tweet_url = f"https://twitter.com/intent/tweet?text={encoded_news}"
+        # Tweet Oluşturma Bölümü
+        st.markdown("---")
+        st.subheader("🚀 Ready to Tweet")
+        
+        # Şablon Seçimi
+        template_options = ["Standard", "Breaking News", "Market Recap", "Crypto Alert"]
+        selected_template = st.selectbox("Choose Template", template_options)
+        
+        # Seçili haberleri birleştir
+        selected_items = [item for item in st.session_state["news_data"] if item["selected"]]
+        
+        if selected_items:
+            tweet_body = ""
+            today_str = datetime.now().strftime("%d %B %Y")
+            
+            if selected_template == "Standard":
+                tweet_body = f"📅 **{today_str} - Market Update**\n\n"
+            elif selected_template == "Breaking News":
+                tweet_body = f"🚨 **BREAKING NEWS ({today_str})**\n\n"
+            elif selected_template == "Market Recap":
+                tweet_body = f"📊 **Daily Market Recap**\n\n"
+            elif selected_template == "Crypto Alert":
+                tweet_body = f"⚡ **Crypto Flash Update**\n\n"
+            
+            # Haberleri ekle
+            hashtags = set()
+            for item in selected_items:
+                tweet_body += f"{item['text']}\n\n"
                 
-                try:
-                    st.link_button(texts["tweet_btn"], news_tweet_url)
-                except:
-                    st.markdown(f"[🐦 {texts['tweet_btn']}]({news_tweet_url})")
+                # Otomatik Hashtag Çıkarımı
+                lower_text = item['text'].lower()
+                if "bitcoin" in lower_text: hashtags.add("#Bitcoin")
+                if "crypto" in lower_text: hashtags.add("#Crypto")
+                if "fed " in lower_text: hashtags.add("#Fed")
+                if "inflation" in lower_text: hashtags.add("#Inflation")
+                if "gold" in lower_text: hashtags.add("#Gold")
+                if "stock" in lower_text: hashtags.add("#Stocks")
+                if "apple" in lower_text: hashtags.add("$AAPL")
+                if "tesla" in lower_text: hashtags.add("$TSLA")
+                if "nvidia" in lower_text: hashtags.add("$NVDA")
+            
+            # Hashtagleri ekle
+            if hashtags:
+                tweet_body += " ".join(hashtags)
+            
+            # Sonuç Kutusu
+            st.text_area("Final Tweet", value=tweet_body, height=300)
+            
+            # Butonlar
+            tc1, tc2 = st.columns(2)
+            if tc1.button("📋 Copy to Clipboard"):
+                st.toast("Copied to clipboard! (Simulation)", icon="✅")
+                # Streamlit'te doğrudan panoya kopyalama kısıtlıdır, kullanıcı manuel kopyalar.
+            
+            # Twitter Intent
+            encoded_tweet = urllib.parse.quote(tweet_body)
+            tweet_link = f"https://twitter.com/intent/tweet?text={encoded_tweet}"
+            tc2.link_button("🐦 Send Tweet", tweet_link)
+            
+        else:
+            st.info("Select news items above to generate a tweet.")
+            
+    else:
+        st.info("👆 Click buttons above to fetch news and start composing.")
 
 with tab3:
     st.subheader(texts["chart_tab"])
