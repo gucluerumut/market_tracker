@@ -24,63 +24,53 @@ PRESETS = {
 
 # Dil Sözlüğü
 LANG = {
-    "TR": {
-        "title": "📈 Anlık Piyasa Takip ve Tweet Oluşturucu",
-        "desc": "Aşağıdan istediğiniz varlıkları seçin ve güncel verileri çekin.",
-        "select_all": "Tümünü Seç",
+    "tr": {
+        "title": "Piyasa Takipçisi",
+        "sidebar_title": "Ayarlar",
+        "select_assets": "Varlıkları Seç",
         "fetch_btn": "Verileri Getir",
-        "copy_title": "📋 Kopyalanabilir Metin",
-        "success": "Veriler güncellendi!",
+        "copy_title": "Kopyalanabilir Sonuç",
+        "success": "Veriler başarıyla çekildi!",
         "error": "Hata oluştu:",
-        "no_selection": "Lütfen en az bir varlık seçiniz.",
+        "tweet_btn": "Twitter'da Paylaş",
         "loading": "Veriler çekiliyor...",
         "no_data": "Veri Yok",
         "snapshot_header": "📊 PİYASA ÖZETİ",
-        "presets": "Hazır Paketler",
-        "tweet_btn": "🐦 Tweet At",
-        "comment_title": "🤖 Piyasa Yorumu",
-        "fng_title": "😨 Kripto Korku & Açgözlülük",
-        "news_tab": "📰 Haber Akışı & Özet",
-        "news_morning": "☕️ Sabah: Genel Ekonomi",
-        "news_noon": "☀️ Öğlen: Borsa & Şirketler",
-        "news_evening": "🌙 Akşam: Kripto & Kapanış",
-        "news_fetch": "Haberleri Getir ve Özetle",
-        "news_header": "📌 {} | Finans Özeti",
-        "chart_tab": "📈 Grafik Oluşturucu",
-        "chart_select": "Varlık Seçin:",
-        "chart_range_label": "Zaman Aralığı:",
-        "chart_btn": "Grafiği Oluştur",
-        "chart_download": "Grafiği İndir (PNG)",
-        "chart_title": "{} Günlük Grafik",
+        "fng_title": "Korku ve Açgözlülük",
+        "news_tab": "Haberler & Tweet Oluşturucu",
+        "chart_tab": "Grafik Oluşturucu",
+        "news_header": "📢 {0} Günü Piyasalar",
+        "news_morning": "Sabah Özeti",
+        "news_noon": "Borsa Gündemi",
+        "news_evening": "Kripto Akşamı",
+        "presets_header": "Hazır Paketler",
+        "preset_morning": "☕️ Sabah Kahvesi",
+        "preset_crypto": "🚀 Kripto Sepeti",
+        "preset_us": "🇺🇸 ABD Borsaları"
     },
-    "EN": {
-        "title": "📈 Live Market Tracker & Tweet Generator",
-        "desc": "Select assets below to fetch real-time data.",
-        "select_all": "Select All",
+    "en": {
+        "title": "Market Tracker",
+        "sidebar_title": "Settings",
+        "select_assets": "Select Assets",
         "fetch_btn": "Fetch Data",
-        "copy_title": "📋 Copyable Text",
-        "success": "Data updated!",
+        "copy_title": "Copyable Result",
+        "success": "Data fetched successfully!",
         "error": "Error occurred:",
-        "no_selection": "Please select at least one asset.",
+        "tweet_btn": "Share on Twitter",
         "loading": "Fetching data...",
         "no_data": "No Data",
         "snapshot_header": "📊 MARKET SNAPSHOT",
-        "presets": "Presets",
-        "tweet_btn": "🐦 Tweet This",
-        "comment_title": "🤖 Market Comment",
-        "fng_title": "😨 Crypto Fear & Greed",
-        "news_tab": "📰 News Feed & Summary",
-        "news_morning": "☕️ Morning: General Economy",
-        "news_noon": "☀️ Noon: Stocks & Companies",
-        "news_evening": "🌙 Evening: Crypto & Closing",
-        "news_fetch": "Fetch & Summarize News",
-        "news_header": "📌 {} | Finance Summary",
-        "chart_tab": "📈 Chart Generator",
-        "chart_select": "Select Asset:",
-        "chart_range_label": "Time Range:",
-        "chart_btn": "Generate Chart",
-        "chart_download": "Download Chart (PNG)",
-        "chart_title": "{} Daily Chart",
+        "fng_title": "Fear & Greed",
+        "news_tab": "News & Tweet Composer",
+        "chart_tab": "Chart Generator",
+        "news_header": "📢 {0} Market News",
+        "news_morning": "Morning Brief",
+        "news_noon": "Stock Market",
+        "news_evening": "Crypto Night",
+        "presets_header": "Presets",
+        "preset_morning": "☕️ Morning Coffee",
+        "preset_crypto": "🚀 Crypto Basket",
+        "preset_us": "🇺🇸 US Markets"
     }
 }
 
@@ -135,11 +125,49 @@ st.set_page_config(page_title="Piyasa Takipçisi", layout="wide")
 # 2. UI VE STATE YÖNETİMİ
 # ==========================================
 
+import json
+
 # Dil Seçimi (Sidebar)
 with st.sidebar:
     st.header("⚙️ Ayarlar / Settings")
     lang_choice = st.radio("Dil / Language", ["TR", "EN"], index=0)
     
+    st.divider()
+    
+    # Portföy Kaydet / Yükle
+    st.subheader("💾 Portfolio")
+    
+    # Kaydet Butonu
+    if st.button("Save My Portfolio"):
+        # Seçili ID'leri bul
+        saved_ids = [k for k, v in st.session_state.items() if v is True and k in [item['id'] for item in ASSETS_DB]]
+        if saved_ids:
+            with open("user_portfolio.json", "w") as f:
+                json.dump(saved_ids, f)
+            st.success("Saved!" if lang_choice == "EN" else "Kaydedildi!")
+        else:
+            st.warning("Select assets first.")
+
+    # Yükle Butonu
+    if st.button("Load My Portfolio"):
+        try:
+            with open("user_portfolio.json", "r") as f:
+                saved_ids = json.load(f)
+            
+            # Önce temizle
+            for item in ASSETS_DB:
+                st.session_state[item['id']] = False
+            
+            # Yüklenenleri seç
+            for pid in saved_ids:
+                st.session_state[pid] = True
+            
+            st.rerun()
+        except FileNotFoundError:
+            st.error("No saved portfolio found.")
+            
+    st.divider()
+
     # Hazır Paket Butonları
     st.subheader(LANG[lang_choice]["presets"])
     for preset_name, preset_ids in PRESETS.items():
@@ -403,27 +431,49 @@ def fetch_finance_news(category="general"):
         "vs.", "transcript", "motley", "zacks", "guru", "prediction",
         "subscribers only", "premium", "webinar"
     ]
+    
+    # -----------------------------------------------------------
+    # Kaynak Bazlı RSS Tanımları
+    # -----------------------------------------------------------
+    rss_definitions = [
+        # YAHOO FINANCE
+        {"url": "https://finance.yahoo.com/news/rssindex", "name": "Yahoo", "cats": ["general", "stocks"]},
+        # CNBC
+        {"url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664", "name": "CNBC", "cats": ["general"]},
+        {"url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114", "name": "CNBC", "cats": ["stocks"]},
+        # WSJ / MARKETWATCH
+        {"url": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml", "name": "WSJ", "cats": ["general"]},
+        {"url": "https://feeds.content.dowjones.io/public/rss/mw_topstories", "name": "MarketWatch", "cats": ["stocks"]},
+        # INVESTING.COM
+        {"url": "https://www.investing.com/rss/news.rss", "name": "Investing", "cats": ["general"]},
+        {"url": "https://www.investing.com/rss/news_301.rss", "name": "Investing", "cats": ["crypto"]},
+        # CRYPTO SPECIFIC
+        {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "name": "CoinDesk", "cats": ["crypto"]},
+        {"url": "https://cointelegraph.com/rss", "name": "CoinTelegraph", "cats": ["crypto"]}
+    ]
+    
+    # İlgili kategorideki URL'leri filtrele
+    source_list = [item for item in rss_definitions if category in item["cats"]]
+    
+    all_headlines = []
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
 
     # Tüm kaynakları tara
-    for url in source_urls:
-        if len(all_headlines) >= 5: break # Yeterince haber bulduysak dur
+    for src in source_list:
+        if len(all_headlines) >= 8: break # Yeterince haber bulduysak dur
         
-        # Kaynak ismini URL'den tahmin et
-        source_name = "News"
-        if "yahoo" in url: source_name = "Yahoo"
-        elif "cnbc" in url: source_name = "CNBC"
-        elif "dj.com" in url or "wsj" in url: source_name = "WSJ"
-        elif "investing" in url: source_name = "Investing"
-        elif "coindesk" in url: source_name = "CoinDesk"
-        elif "cointelegraph" in url: source_name = "CoinTelegraph"
-        elif "dowjones" in url: source_name = "MarketWatch"
+        url = src["url"]
+        source_name = src["name"]
         
         try:
             response = requests.get(url, headers=headers, timeout=5)
             feed = feedparser.parse(BytesIO(response.content))
             
             for entry in feed.entries:
-                if len(all_headlines) >= 5: break
+                if len(all_headlines) >= 8: break
                 
                 title = entry.title
                 link = entry.link
@@ -450,23 +500,45 @@ def fetch_finance_news(category="general"):
             
     return all_headlines
 
+def calculate_rsi(series, period=14):
+    """
+    Basit RSI (Relative Strength Index) Hesaplayıcı
+    """
+    if len(series) < period + 1:
+        return None
+        
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi.iloc[-1]
+
 def get_symbol_data(item):
     """
-    Tek bir sembol için verileri çeker (fast_info kullanarak).
+    Tek bir sembol için verileri çeker (History kullanarak, RSI için).
     """
     ticker = item['ticker']
     try:
         t = yf.Ticker(ticker)
-        # fast_info genelde daha hızlıdır ve güvenilir last_price/prev_close verir
-        info = t.fast_info
+        # RSI için en az 1 aylık veriye ihtiyaç var (14 periyotluk hesaplama için)
+        hist = t.history(period="1mo")
         
-        last_price = info.last_price
-        prev_close = info.previous_close
+        if hist.empty:
+            return {"id": item['id'], "last_price": None, "error": "No Data"}
+            
+        last_price = hist["Close"].iloc[-1]
+        prev_close = hist["Close"].iloc[-2] if len(hist) > 1 else last_price
+        
+        # RSI Hesapla
+        rsi_val = calculate_rsi(hist["Close"])
         
         return {
             "id": item['id'],
             "last_price": last_price,
             "prev_close": prev_close,
+            "rsi": rsi_val,
             "error": None
         }
     except Exception as e:
@@ -474,94 +546,156 @@ def get_symbol_data(item):
             "id": item['id'],
             "last_price": None,
             "prev_close": None,
+            "rsi": None,
             "error": str(e)
         }
 
-def get_market_data(selected_assets_list, lang_code):
+def get_market_data(selected_assets_list, lang_code="tr"):
+    """
+    Seçili varlıklar için verileri çeker ve formatlı metin döndürür.
+    """
     if not selected_assets_list:
-        return texts["no_selection"]
+        return "Lütfen en az bir varlık seçin."
         
     try:
-        output_lines = []
+        # Ticker listesi oluştur
+        tickers = [item['ticker'] for item in selected_assets_list]
         
-        with st.spinner(texts["loading"]):
-            # Paralel veri çekimi (Hızlandırmak için)
-            results = {}
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future_to_item = {executor.submit(get_symbol_data, item): item for item in selected_assets_list}
-                for future in concurrent.futures.as_completed(future_to_item):
-                    item = future_to_item[future]
-                    try:
-                        data = future.result()
-                        results[data['id']] = data
-                    except Exception as e:
-                        results[item['id']] = {"error": str(e), "last_price": None}
+        # Paralel veri çekme
+        results = {}
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_item = {executor.submit(get_symbol_data, item): item for item in selected_assets_list}
+            for future in concurrent.futures.as_completed(future_to_item):
+                item = future_to_item[future]
+                try:
+                    data = future.result()
+                    results[data['id']] = data
+                except Exception as e:
+                    results[item['id']] = {"error": str(e), "last_price": None}
+        
+        output_lines = []
+        processed_results = [] # İstatistikler için
+        
+        # 1. Başlık (Zamana Göre Dinamik)
+        current_hour = datetime.now().hour
+        if 6 <= current_hour < 12:
+            header_emoji = "☕"
+            header_text = "MORNING BRIEF" if lang_code == "en" else "GÜNAYDIN PİYASALAR"
+        elif 12 <= current_hour < 18:
+            header_emoji = "☀️"
+            header_text = "MID-DAY PULSE" if lang_code == "en" else "GÜN ORTASI NABZI"
+        elif 18 <= current_hour < 23:
+            header_emoji = "🌙"
+            header_text = "CLOSING BELL" if lang_code == "en" else "KAPANIŞ RAPORU"
+        else:
+            header_emoji = "🦉"
+            header_text = "NIGHT WATCH" if lang_code == "en" else "GECE NÖBETİ"
             
-            # Sonuçları işle
-            processed_results = []
+        full_header = f"🚨 {header_emoji} **{header_text}**"
+        output_lines.append(full_header)
+        output_lines.append(f"🗓️ {datetime.now().strftime('%d.%m.%Y')}")
+        output_lines.append("─" * 20)
+        
+        # 2. Varlık Listesi
+        valid_data_count = 0
+        positive_count = 0
+        negative_count = 0
+        
+        asset_lines = []
+        
+        for item in selected_assets_list:
+            data = results.get(item['id'])
+            name = item[f"name_{lang_code.lower()}"]
+            emoji = item['emoji']
+            ticker = item['ticker']
             
-            # Başlık Ekle
-            header_text = LANG[lang_code]["snapshot_header"]
-            output_lines.insert(0, header_text)
+            res_obj = {"name": name, "pct_change": 0.0, "valid": False}
             
-            for item in selected_assets_list:
-                data = results.get(item['id'])
-                name = item[f"name_{lang_code.lower()}"]
-                emoji = item['emoji']
-                ticker = item['ticker']
+            if data and data.get("last_price") is not None:
+                last_price = data["last_price"]
+                prev_close = data.get("prev_close")
                 
-                res_obj = {"name": name, "pct_change": None}
+                # Fiyat Formatı
+                price_fmt = f"${last_price:,.2f}"
+                if "TRY" in ticker:
+                    price_fmt = f"₺{last_price:,.2f}"
                 
-                if data and data.get("last_price") is not None:
-                    last_price = data["last_price"]
-                    prev_close = data.get("prev_close")
+                # Değişim Hesapla
+                change_str = ""
+                pct_change = 0.0
+                
+                if prev_close and prev_close > 0:
+                    pct_change = ((last_price - prev_close) / prev_close) * 100
+                    res_obj["pct_change"] = pct_change
+                    res_obj["valid"] = True
+                    valid_data_count += 1
                     
-                    # Fiyat Formatı
-                    price_fmt = f"${last_price:,.2f}"
-                    if "TRY" in ticker:
-                        price_fmt = f"₺{last_price:,.2f}"
-                    
-                    # Değişim Hesapla
-                    change_str = ""
-                    if prev_close and prev_close > 0:
-                        pct_change = ((last_price - prev_close) / prev_close) * 100
-                        res_obj["pct_change"] = pct_change
+                    # Yön Emojisi
+                    if pct_change > 0:
+                        dir_emoji = "🟢"
+                        sign = "+"
+                        positive_count += 1
+                    elif pct_change < 0:
+                        dir_emoji = "🔻"
+                        sign = ""
+                        negative_count += 1
+                    else:
+                        dir_emoji = "⚪️"
+                        sign = ""
                         
-                        # Yön Emojisi
-                        if pct_change > 0:
-                            dir_emoji = "🟢"
-                            sign = "+"
-                        elif pct_change < 0:
-                            dir_emoji = "🔻"
-                            sign = ""
-                        else:
-                            dir_emoji = "⚪️"
-                            sign = ""
-                            
-                        if abs(pct_change) < 0.01:
-                             change_str = f"⚪️ (0.00%)"
-                        else:
-                             change_str = f"{dir_emoji} ({sign}{pct_change:.2f}%)"
-                    
-                    line = f"{emoji} {name}: {price_fmt} {change_str}"
-                    output_lines.append(line)
-                else:
-                    output_lines.append(f"{emoji} {name}: {texts['no_data']}")
+                    if abs(pct_change) < 0.01:
+                         change_str = f"⚪️ (0.00%)"
+                    else:
+                         change_str = f"{dir_emoji} ({sign}{pct_change:.2f}%)"
                 
-                processed_results.append(res_obj)
-
-            # FnG Ekle
-            fng_val, fng_class = get_fng_data()
-            if fng_val:
-                fng_line = f"🧠 {texts['fng_title']}: {fng_val} ({fng_class})"
-                output_lines.append(fng_line)
-
-            # Yorum Ekle
-            comment = generate_commentary(processed_results, lang_code)
-            if comment:
-                 output_lines.append(f"\n💡 {comment}")
+                # RSI Sinyali
+                rsi_str = ""
+                rsi_val = data.get("rsi")
+                if rsi_val:
+                    if rsi_val < 30:
+                        rsi_str = " 🔥 OVERSOLD (Al?)" if lang_code == "tr" else " 🔥 OVERSOLD"
+                    elif rsi_val > 70:
+                        rsi_str = " ⚠️ OVERBOUGHT (Sat?)" if lang_code == "tr" else " ⚠️ OVERBOUGHT"
+                
+                line = f"{emoji} {name}: {price_fmt} {change_str}{rsi_str}"
+                asset_lines.append(line)
+            else:
+                asset_lines.append(f"{emoji} {name}: {texts['no_data']}")
             
-            return "\n".join(output_lines)
+            processed_results.append(res_obj)
+
+        # 3. Piyasa Modu (Market Vibe)
+        if valid_data_count > 0:
+            if positive_count > negative_count:
+                vibe = "🐂 BULLISH (Yükseliş)" if lang_code == "tr" else "🐂 BULLISH"
+            elif negative_count > positive_count:
+                vibe = "🐻 BEARISH (Düşüş)" if lang_code == "tr" else "🐻 BEARISH"
+            else:
+                vibe = "🦀 NEUTRAL (Yatay)" if lang_code == "tr" else "🦀 NEUTRAL"
+            
+            output_lines.insert(2, f"Mood: {vibe}\n")
+        
+        output_lines.extend(asset_lines)
+        
+        # 4. Hot Movers (En Çok Kazandıran/Kaybettiren)
+        valid_items = [x for x in processed_results if x["valid"]]
+        if len(valid_items) >= 2:
+            sorted_items = sorted(valid_items, key=lambda x: x["pct_change"], reverse=True)
+            top_gainer = sorted_items[0]
+            top_loser = sorted_items[-1]
+            
+            output_lines.append("\n🔥 **HOT MOVERS**")
+            output_lines.append(f"🚀 Top Gainer: {top_gainer['name']} (+{top_gainer['pct_change']:.2f}%)")
+            output_lines.append(f"📉 Top Loser: {top_loser['name']} ({top_loser['pct_change']:.2f}%)")
+
+        # 5. FnG Ekle
+        fng_val, fng_class = get_fng_data()
+        if fng_val:
+            output_lines.append("─" * 20)
+            fng_line = f"🧠 {texts['fng_title']}: {fng_val} ({fng_class})"
+            output_lines.append(fng_line)
+        
+        return "\n".join(output_lines)
 
     except Exception as e:
         return f"{texts['error']} {str(e)}"
