@@ -26,8 +26,10 @@ PRESETS = {
 LANG = {
     "tr": {
         "title": "Piyasa Takipçisi",
+        "desc": "Anlık piyasa verileri, haberler ve grafikler.",
         "sidebar_title": "Ayarlar",
         "select_assets": "Varlıkları Seç",
+        "select_all": "Tümünü Seç",
         "fetch_btn": "Verileri Getir",
         "copy_title": "Kopyalanabilir Sonuç",
         "success": "Veriler başarıyla çekildi!",
@@ -43,15 +45,22 @@ LANG = {
         "news_morning": "Sabah Özeti",
         "news_noon": "Borsa Gündemi",
         "news_evening": "Kripto Akşamı",
+        "chart_select": "Varlık Seç",
+        "chart_range_label": "Zaman Aralığı",
+        "chart_btn": "Grafik Oluştur",
+        "chart_download": "Grafiği İndir",
         "presets_header": "Hazır Paketler",
+        "presets": "Hazır Paketler", # Geriye dönük uyumluluk
         "preset_morning": "☕️ Sabah Kahvesi",
         "preset_crypto": "🚀 Kripto Sepeti",
         "preset_us": "🇺🇸 ABD Borsaları"
     },
     "en": {
         "title": "Market Tracker",
+        "desc": "Real-time market data, news and charts.",
         "sidebar_title": "Settings",
         "select_assets": "Select Assets",
+        "select_all": "Select All",
         "fetch_btn": "Fetch Data",
         "copy_title": "Copyable Result",
         "success": "Data fetched successfully!",
@@ -67,12 +76,21 @@ LANG = {
         "news_morning": "Morning Brief",
         "news_noon": "Stock Market",
         "news_evening": "Crypto Night",
+        "chart_select": "Select Asset",
+        "chart_range_label": "Time Range",
+        "chart_btn": "Generate Chart",
+        "chart_download": "Download Chart",
         "presets_header": "Presets",
+        "presets": "Presets", # Geriye dönük uyumluluk
         "preset_morning": "☕️ Morning Coffee",
         "preset_crypto": "🚀 Crypto Basket",
         "preset_us": "🇺🇸 US Markets"
     }
 }
+
+# Geriye dönük uyumluluk (Büyük harf desteği)
+LANG["TR"] = LANG["tr"]
+LANG["EN"] = LANG["en"]
 
 # Varlık Veritabanı
 # category_key: Bu asset'in hangi kategoride olduğunu belirtir (UI'da gruplamak için)
@@ -169,7 +187,7 @@ with st.sidebar:
     st.divider()
 
     # Hazır Paket Butonları
-    st.subheader(LANG[lang_choice]["presets"])
+    st.subheader(LANG[lang_choice.lower()]["presets_header"])
     for preset_name, preset_ids in PRESETS.items():
         if st.button(preset_name):
             # Önce hepsini temizle
@@ -181,7 +199,7 @@ with st.sidebar:
             st.rerun()
 
 # Dil metinlerini al
-texts = LANG[lang_choice]
+texts = LANG[lang_choice.lower()]
 
 st.title(texts["title"])
 st.write(texts["desc"])
@@ -500,45 +518,22 @@ def fetch_finance_news(category="general"):
             
     return all_headlines
 
-def calculate_rsi(series, period=14):
-    """
-    Basit RSI (Relative Strength Index) Hesaplayıcı
-    """
-    if len(series) < period + 1:
-        return None
-        
-    delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi.iloc[-1]
-
 def get_symbol_data(item):
     """
-    Tek bir sembol için verileri çeker (History kullanarak, RSI için).
+    Tek bir sembol için verileri çeker (Fast Info kullanarak, daha hızlı).
     """
     ticker = item['ticker']
     try:
         t = yf.Ticker(ticker)
-        # RSI için en az 1 aylık veriye ihtiyaç var (14 periyotluk hesaplama için)
-        hist = t.history(period="1mo")
-        
-        if hist.empty:
-            return {"id": item['id'], "last_price": None, "error": "No Data"}
-            
-        last_price = hist["Close"].iloc[-1]
-        prev_close = hist["Close"].iloc[-2] if len(hist) > 1 else last_price
-        
-        # RSI Hesapla
-        rsi_val = calculate_rsi(hist["Close"])
+        # Fast Info kullanımı (Daha hızlı)
+        info = t.fast_info
+        last_price = info.last_price
+        prev_close = info.previous_close
         
         return {
             "id": item['id'],
             "last_price": last_price,
             "prev_close": prev_close,
-            "rsi": rsi_val,
             "error": None
         }
     except Exception as e:
@@ -546,7 +541,6 @@ def get_symbol_data(item):
             "id": item['id'],
             "last_price": None,
             "prev_close": None,
-            "rsi": None,
             "error": str(e)
         }
 
@@ -576,32 +570,14 @@ def get_market_data(selected_assets_list, lang_code="tr"):
         output_lines = []
         processed_results = [] # İstatistikler için
         
-        # 1. Başlık (Zamana Göre Dinamik)
-        current_hour = datetime.now().hour
-        if 6 <= current_hour < 12:
-            header_emoji = "☕"
-            header_text = "MORNING BRIEF" if lang_code == "en" else "GÜNAYDIN PİYASALAR"
-        elif 12 <= current_hour < 18:
-            header_emoji = "☀️"
-            header_text = "MID-DAY PULSE" if lang_code == "en" else "GÜN ORTASI NABZI"
-        elif 18 <= current_hour < 23:
-            header_emoji = "🌙"
-            header_text = "CLOSING BELL" if lang_code == "en" else "KAPANIŞ RAPORU"
-        else:
-            header_emoji = "🦉"
-            header_text = "NIGHT WATCH" if lang_code == "en" else "GECE NÖBETİ"
-            
-        full_header = f"🚨 {header_emoji} **{header_text}**"
-        output_lines.append(full_header)
-        output_lines.append(f"🗓️ {datetime.now().strftime('%d.%m.%Y')}")
-        output_lines.append("─" * 20)
+        # 1. Başlık
+        header_text = "Latest!" if lang_code == "en" else "Son Durum!"
+        output_lines.append(f"🚨 {header_text}")
+        output_lines.append("") 
         
         # 2. Varlık Listesi
-        valid_data_count = 0
-        positive_count = 0
-        negative_count = 0
-        
         asset_lines = []
+        processed_results = []
         
         for item in selected_assets_list:
             data = results.get(item['id'])
@@ -628,17 +604,14 @@ def get_market_data(selected_assets_list, lang_code="tr"):
                     pct_change = ((last_price - prev_close) / prev_close) * 100
                     res_obj["pct_change"] = pct_change
                     res_obj["valid"] = True
-                    valid_data_count += 1
                     
                     # Yön Emojisi
                     if pct_change > 0:
                         dir_emoji = "🟢"
                         sign = "+"
-                        positive_count += 1
                     elif pct_change < 0:
                         dir_emoji = "🔻"
                         sign = ""
-                        negative_count += 1
                     else:
                         dir_emoji = "⚪️"
                         sign = ""
@@ -648,33 +621,13 @@ def get_market_data(selected_assets_list, lang_code="tr"):
                     else:
                          change_str = f"{dir_emoji} ({sign}{pct_change:.2f}%)"
                 
-                # RSI Sinyali
-                rsi_str = ""
-                rsi_val = data.get("rsi")
-                if rsi_val:
-                    if rsi_val < 30:
-                        rsi_str = " 🔥 OVERSOLD (Al?)" if lang_code == "tr" else " 🔥 OVERSOLD"
-                    elif rsi_val > 70:
-                        rsi_str = " ⚠️ OVERBOUGHT (Sat?)" if lang_code == "tr" else " ⚠️ OVERBOUGHT"
-                
-                line = f"{emoji} {name}: {price_fmt} {change_str}{rsi_str}"
+                line = f"{emoji} {name}: {price_fmt} {change_str}"
                 asset_lines.append(line)
             else:
                 asset_lines.append(f"{emoji} {name}: {texts['no_data']}")
             
             processed_results.append(res_obj)
 
-        # 3. Piyasa Modu (Market Vibe)
-        if valid_data_count > 0:
-            if positive_count > negative_count:
-                vibe = "🐂 BULLISH (Yükseliş)" if lang_code == "tr" else "🐂 BULLISH"
-            elif negative_count > positive_count:
-                vibe = "🐻 BEARISH (Düşüş)" if lang_code == "tr" else "🐻 BEARISH"
-            else:
-                vibe = "🦀 NEUTRAL (Yatay)" if lang_code == "tr" else "🦀 NEUTRAL"
-            
-            output_lines.insert(2, f"Mood: {vibe}\n")
-        
         output_lines.extend(asset_lines)
         
         # 4. Hot Movers (En Çok Kazandıran/Kaybettiren)
@@ -919,6 +872,7 @@ with tab3:
                     chart_title = f"\n{selected_asset_name} ({p_period.upper()} - UTC)"
 
                     # Grafiği Çiz (Candlestick)
+                    # returnfig=True ile figure nesnesini alıyoruz
                     fig, axlist = mpf.plot(
                         df,
                         type='candle',

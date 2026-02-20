@@ -5,3 +5,4 @@ __pycache__/
 venv/
 test_rss.py
 check_sources.py
+user_portfolio.json
