@@ -571,7 +571,7 @@ def get_market_data(selected_assets_list, lang_code="tr"):
         processed_results = [] # İstatistikler için
         
         # 1. Başlık
-        header_text = "Latest!" if lang_code == "en" else "Son Durum!"
+        header_text = "Latest!" if lang_code.lower() == "en" else "Son Durum!"
         output_lines.append(f"🚨 {header_text}")
         output_lines.append("") 
         
