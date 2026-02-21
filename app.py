@@ -641,13 +641,6 @@ def get_market_data(selected_assets_list, lang_code="tr"):
             output_lines.append(f"🚀 Top Gainer: {top_gainer['name']} (+{top_gainer['pct_change']:.2f}%)")
             output_lines.append(f"📉 Top Loser: {top_loser['name']} ({top_loser['pct_change']:.2f}%)")
 
-        # 5. FnG Ekle
-        fng_val, fng_class = get_fng_data()
-        if fng_val:
-            output_lines.append("─" * 20)
-            fng_line = f"🧠 {texts['fng_title']}: {fng_val} ({fng_class})"
-            output_lines.append(fng_line)
-        
         return "\n".join(output_lines)
 
     except Exception as e:
